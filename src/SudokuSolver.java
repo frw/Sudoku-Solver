@@ -1,10 +1,9 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.*;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -16,7 +15,8 @@ import java.util.Set;
  * Date: 6/30/12
  * Time: 5:41 PM
  */
-public class SudokuSolver extends JApplet {
+public class SudokuSolver
+        extends JApplet {
 
     public static final int NUM_ROWS = 9 * 9 * 9;
     public static final int NUM_COLS = 9 * 9 * 4;
@@ -57,7 +57,8 @@ public class SudokuSolver extends JApplet {
         contentPane.setLayout(new BorderLayout());
         setContentPane(contentPane);
 
-        JLabel label = new JLabel("<html>Right-click the target grid to input a number</html>", SwingConstants.CENTER);
+        JLabel label = new JLabel("<html>Right-click the target cell or use the keyboard to input a number</html>",
+                SwingConstants.CENTER);
         contentPane.add(label, BorderLayout.NORTH);
 
         grid = new Grid();
@@ -91,6 +92,9 @@ public class SudokuSolver extends JApplet {
             }
         });
         buttonPanel.add(resetButton);
+
+        addKeyListener(grid);
+        setFocusable(true);
     }
 
     public int[][] solve(int[][] values) {
@@ -131,7 +135,9 @@ public class SudokuSolver extends JApplet {
         }
     }
 
-    private class Grid extends JPanel implements MouseListener {
+    private class Grid
+            extends JPanel
+            implements MouseListener, KeyListener {
 
         private final Stroke stroke4 = new BasicStroke(4);
         private final Stroke stroke8 = new BasicStroke(8);
@@ -150,6 +156,19 @@ public class SudokuSolver extends JApplet {
 
         @Override
         public void mouseClicked(MouseEvent e) {
+            int oX = (getWidth() - 450) / 2;
+            int oY = (getHeight() - 450) / 2;
+            Point p = e.getPoint();
+            int x = p.x - oX;
+            int y = p.y - oY;
+            if (x >= 0 && y >= 0 && x <= 449 && y <= 449) {
+                setSelectedCell(y / 50, x / 50);
+                if (e.getButton() == MouseEvent.BUTTON3) {
+                    pm.show(this, p.x, p.y);
+                }
+            } else {
+                clearSelection();
+            }
         }
 
         @Override
@@ -158,22 +177,6 @@ public class SudokuSolver extends JApplet {
 
         @Override
         public void mouseReleased(MouseEvent e) {
-            int oX = (getWidth() - 450) / 2;
-            int oY = (getHeight() - 450) / 2;
-            Point p = e.getPoint();
-            int x = p.x - oX;
-            int y = p.y - oY;
-            if (x >= 0 && y >= 0 && x <= 449 && y <= 449) {
-                sR = y / 50;
-                sC = x / 50;
-                repaint();
-                if (e.getButton() == MouseEvent.BUTTON3) {
-                    pm.show(this, p.x, p.y);
-                }
-            } else {
-                sR = -1;
-                sC = -1;
-            }
         }
 
         @Override
@@ -184,12 +187,88 @@ public class SudokuSolver extends JApplet {
         public void mouseExited(MouseEvent e) {
         }
 
+        @Override
+        public void keyTyped(KeyEvent e) {
+        }
+
+        @Override
+        public void keyPressed(KeyEvent e) {
+            if (isCellSelected()) {
+                int kc = e.getKeyCode();
+                switch (kc) {
+                    case KeyEvent.VK_1:
+                    case KeyEvent.VK_2:
+                    case KeyEvent.VK_3:
+                    case KeyEvent.VK_4:
+                    case KeyEvent.VK_5:
+                    case KeyEvent.VK_6:
+                    case KeyEvent.VK_7:
+                    case KeyEvent.VK_8:
+                    case KeyEvent.VK_9:
+                        input(kc - KeyEvent.VK_0);
+                        break;
+
+                    case KeyEvent.VK_NUMPAD1:
+                    case KeyEvent.VK_NUMPAD2:
+                    case KeyEvent.VK_NUMPAD3:
+                    case KeyEvent.VK_NUMPAD4:
+                    case KeyEvent.VK_NUMPAD5:
+                    case KeyEvent.VK_NUMPAD6:
+                    case KeyEvent.VK_NUMPAD7:
+                    case KeyEvent.VK_NUMPAD8:
+                    case KeyEvent.VK_NUMPAD9:
+                        input(kc - KeyEvent.VK_NUMPAD0);
+                        break;
+
+                    case KeyEvent.VK_DELETE:
+                        input(0);
+                        break;
+
+                    case KeyEvent.VK_UP:
+                    case KeyEvent.VK_KP_UP:
+                        setSelectedCell((sR + 8) % 9, sC);
+                        break;
+                    case KeyEvent.VK_DOWN:
+                    case KeyEvent.VK_KP_DOWN:
+                        setSelectedCell((sR + 1) % 9, sC);
+                        break;
+                    case KeyEvent.VK_LEFT:
+                    case KeyEvent.VK_KP_LEFT:
+                        setSelectedCell(sR, (sC + 8) % 9);
+                        break;
+                    case KeyEvent.VK_RIGHT:
+                    case KeyEvent.VK_KP_RIGHT:
+                        setSelectedCell(sR, (sC + 1) % 9);
+                        break;
+                }
+            }
+        }
+
+        @Override
+        public void keyReleased(KeyEvent e) {
+        }
+
+        public void clearSelection() {
+            sR = -1;
+            sC = -1;
+            repaint();
+        }
+
+        public void setSelectedCell(int r,
+                                    int c) {
+            sR = r;
+            sC = c;
+            repaint();
+        }
+
+        public boolean isCellSelected() {
+            return sR != -1 && sC != -1;
+        }
+
         public void input(int v) {
             if (sR != -1 && sC != -1) {
                 values[sR][sC] = v;
             }
-            sR = -1;
-            sC = -1;
             solution = null;
             invalid = false;
             repaint();
@@ -252,17 +331,33 @@ public class SudokuSolver extends JApplet {
         }
     }
 
-    private class PopupMenu extends JPopupMenu implements ActionListener {
+    private class PopupMenu
+            extends JPopupMenu
+            implements PopupMenuListener, ActionListener {
 
         private final Grid grid;
 
         public PopupMenu(Grid grid) {
             this.grid = grid;
+            addPopupMenuListener(this);
             for (int i = 0; i <= 9; i++) {
                 JMenuItem mi = new JMenuItem(i == 0 ? "" : Integer.toString(i));
                 mi.addActionListener(this);
                 add(mi);
             }
+        }
+
+        @Override
+        public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+        }
+
+        @Override
+        public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+            repaint();
+        }
+
+        @Override
+        public void popupMenuCanceled(PopupMenuEvent e) {
         }
 
         @Override
